@@ -21,6 +21,8 @@ import org.apache.http.entity.mime.content.FileBody;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import weixin.popular.bean.BaseResult;
 import weixin.popular.bean.material.Description;
@@ -41,6 +43,8 @@ import weixin.popular.util.StreamUtils;
  *
  */
 public class MaterialAPI extends BaseAPI{
+	
+	private static Logger logger = LoggerFactory.getLogger(MaterialAPI.class);
 
 	/**
 	 * 新增永久图文素材
@@ -54,7 +58,7 @@ public class MaterialAPI extends BaseAPI{
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 										.setHeader(jsonHeader)
 										.setUri(BASE_URI+"/cgi-bin/material/add_news")
-										.addParameter(getATPN(), access_token)
+										.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 										.setEntity(new StringEntity(messageJson,Charset.forName("utf-8")))
 										.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,Media.class);
@@ -81,7 +85,7 @@ public class MaterialAPI extends BaseAPI{
         if(description != null){
         	multipartEntityBuilder.addTextBody("description", JsonUtil.toJSONString(description),ContentType.create("text/plain",Charset.forName("utf-8")));
         }
-        HttpEntity reqEntity = multipartEntityBuilder.addTextBody(getATPN(), access_token)
+        HttpEntity reqEntity = multipartEntityBuilder.addTextBody(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 			                 .addTextBody("type",mediaType.uploadType())
 			                 .build();
         httpPost.setEntity(reqEntity);
@@ -106,14 +110,14 @@ public class MaterialAPI extends BaseAPI{
 		try {
 			data = StreamUtils.copyToByteArray(inputStream);
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("", e);
 		}
         MultipartEntityBuilder multipartEntityBuilder = MultipartEntityBuilder.create()
         		.addBinaryBody("media",data,ContentType.DEFAULT_BINARY,"temp."+mediaType.fileSuffix());
 		if(description != null){
 			multipartEntityBuilder.addTextBody("description", JsonUtil.toJSONString(description),ContentType.create("text/plain",Charset.forName("utf-8")));
 		}
-		HttpEntity reqEntity = multipartEntityBuilder.addTextBody(getATPN(), access_token)
+		HttpEntity reqEntity = multipartEntityBuilder.addTextBody(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 		                 .addTextBody("type",mediaType.uploadType())
 		                 .build();
         httpPost.setEntity(reqEntity);
@@ -143,24 +147,24 @@ public class MaterialAPI extends BaseAPI{
 			 if(description != null){
 				multipartEntityBuilder.addTextBody("description", JsonUtil.toJSONString(description),ContentType.create("text/plain",Charset.forName("utf-8")));
 			 }
-			 HttpEntity reqEntity = multipartEntityBuilder.addTextBody(getATPN(), access_token)
+			 HttpEntity reqEntity = multipartEntityBuilder.addTextBody(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 			         .addTextBody("type",mediaType.uploadType())
 			         .build();
 			httpPost.setEntity(reqEntity);
 			return LocalHttpClient.executeJsonResult(httpPost,Media.class);
 		} catch (UnsupportedCharsetException e) {
-			e.printStackTrace();
+			logger.error("", e);
 		} catch (ClientProtocolException e) {
-			e.printStackTrace();
+			logger.error("", e);
 		} catch (ParseException e) {
-			e.printStackTrace();
+			logger.error("", e);
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("", e);
 		} finally{
 			try {
 				tempHttpClient.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+				logger.error("", e);
 			}
 		}
 		return null;
@@ -176,7 +180,7 @@ public class MaterialAPI extends BaseAPI{
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 					.setHeader(jsonHeader)
 					.setUri(BASE_URI+"/cgi-bin/material/get_material")
-					.addParameter(getATPN(), access_token)
+					.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 					.setEntity(new StringEntity("{\"media_id\":\""+media_id+"\"}",Charset.forName("utf-8")))
 					.build();
 		return LocalHttpClient.execute(httpUriRequest,BytesOrJsonResponseHandler.createResponseHandler(MaterialGetResult.class));
@@ -193,7 +197,7 @@ public class MaterialAPI extends BaseAPI{
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 					.setHeader(jsonHeader)
 					.setUri(BASE_URI+"/cgi-bin/material/del_material")
-					.addParameter(getATPN(), access_token)
+					.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 					.setEntity(new StringEntity("{\"media_id\":\""+media_id+"\"}",Charset.forName("utf-8")))
 					.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,BaseResult.class);
@@ -208,16 +212,28 @@ public class MaterialAPI extends BaseAPI{
 	 * @return BaseResult
 	 */
 	public static BaseResult update_news(String access_token,String media_id,int index,List<Article> articles){
-		String str = JsonUtil.toJSONString(articles);
-		String messageJson = "{\"media_id\":\""+media_id+"\",\"index\":"+index+",\"articles\":"+str+"}";
-		HttpUriRequest httpUriRequest = RequestBuilder.post()
-										.setHeader(jsonHeader)
-										.setUri(BASE_URI+"/cgi-bin/material/update_news")
-										.addParameter(getATPN(), access_token)
-										.setEntity(new StringEntity(messageJson,Charset.forName("utf-8")))
-										.build();
-		return LocalHttpClient.executeJsonResult(httpUriRequest,BaseResult.class);
+		return update_news(access_token, media_id, index, JsonUtil.toJSONString(articles));
 	}
+	
+		
+ 	/**
+ 	 * 修改永久图文素材(通过json字符串)
+ 	 * @param access_token access_token
+ 	 * @param media_id 	要修改的图文消息的id
+ 	 * @param index 	要更新的文章在图文消息中的位置（多图文消息时，此字段才有意义），第一篇为0
+ 	 * @param articlesJson articlesJson
+ 	 * @return BaseResult
+ 	 */
+ 	public static BaseResult update_news(String access_token,String media_id,int index,String articlesJson){
+ 		String messageJson = "{\"media_id\":\""+media_id+"\",\"index\":"+index+",\"articles\":"+articlesJson+"}";
+ 		HttpUriRequest httpUriRequest = RequestBuilder.post()
+ 										.setHeader(jsonHeader)
+ 										.setUri(BASE_URI+"/cgi-bin/material/update_news")
+ 										.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
+ 										.setEntity(new StringEntity(messageJson,Charset.forName("utf-8")))
+ 										.build();
+ 		return LocalHttpClient.executeJsonResult(httpUriRequest,BaseResult.class);
+ 	}
 
 
 	/**
@@ -228,7 +244,7 @@ public class MaterialAPI extends BaseAPI{
 	public static MaterialcountResult get_materialcount(String access_token){
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 										.setUri(BASE_URI+"/cgi-bin/material/get_materialcount")
-										.addParameter(getATPN(), access_token)
+										.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 										.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,MaterialcountResult.class);
 	}
@@ -246,7 +262,7 @@ public class MaterialAPI extends BaseAPI{
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 					.setHeader(jsonHeader)
 					.setUri(BASE_URI+"/cgi-bin/material/batchget_material")
-					.addParameter(getATPN(), access_token)
+					.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 					.setEntity(new StringEntity("{\"type\":\""+type+"\",\"offset\":"+offset+",\"count\":"+count+"}",Charset.forName("utf-8")))
 					.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,MaterialBatchgetResult.class);

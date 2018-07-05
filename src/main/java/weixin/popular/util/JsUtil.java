@@ -4,10 +4,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.commons.codec.digest.DigestUtils;
+
 public class JsUtil {
 	
 	//2.5.3  2.8.2 更新
-	public static final String[] ALL_JS_API_LIST = new String[]{
+	public static final String[] ALL_JS_API_LIST = {
 									//基础接口--------------------
 		"checkJsApi",				//判断当前客户端版本是否支持指定JS接口                         	
 									//分享接口--------------------
@@ -76,7 +78,10 @@ public class JsUtil {
 		map.put("jsapi_ticket", jsapi_ticket);
 		map.put("timestamp", timestamp);
 		map.put("url", url);
-		return SignatureUtil.generatePaySign(map, null);
+		
+		Map<String, String> tmap = MapUtil.order(map);
+		String str = MapUtil.mapJoin(tmap,true,false);
+		return DigestUtils.shaHex(str);
 	}
 
 	/**
@@ -138,7 +143,7 @@ public class JsUtil {
 	 *openCard					查看微信卡包中的卡券<br>
  								微信支付<br>
 	 *chooseWXPay				发起一个微信支付<br>
-	 * @return json
+	 * @return javascript 对象数据
 	 */
 	public static String generateConfigJson(String jsapi_ticket,boolean debug,String appId,String url,String... jsApiList){
 		long timestamp = System.currentTimeMillis()/1000;

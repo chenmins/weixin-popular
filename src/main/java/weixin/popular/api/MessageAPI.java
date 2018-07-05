@@ -51,7 +51,7 @@ public class MessageAPI extends BaseAPI{
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 										.setHeader(jsonHeader)
 										.setUri(BASE_URI+"/cgi-bin/message/custom/send")
-										.addParameter(getATPN(), access_token)
+										.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 										.setEntity(new StringEntity(messageJson,Charset.forName("utf-8")))
 										.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,BaseResult.class);
@@ -75,9 +75,7 @@ public class MessageAPI extends BaseAPI{
 	 * @return Media
 	 */
 	public static Media mediaUploadnews(String access_token,List<Article> articles){
-		String str = JsonUtil.toJSONString(articles);
-		String messageJson = "{\"articles\":"+str+"}";
-		return mediaUploadnews(access_token, messageJson);
+		return MediaAPI.mediaUploadnews(access_token, articles);
 	}
 	
 	/**
@@ -87,13 +85,7 @@ public class MessageAPI extends BaseAPI{
 	 * @return result
 	 */
 	public static Media mediaUploadnews(String access_token,String messageJson){
-		HttpUriRequest httpUriRequest = RequestBuilder.post()
-										.setHeader(jsonHeader)
-										.setUri(BASE_URI+"/cgi-bin/media/uploadnews")
-										.addParameter(getATPN(), access_token)
-										.setEntity(new StringEntity(messageJson,Charset.forName("utf-8")))
-										.build();
-		return LocalHttpClient.executeJsonResult(httpUriRequest,Media.class);
+		return MediaAPI.mediaUploadnews(access_token, messageJson);
 	}
 
 	/**
@@ -103,16 +95,8 @@ public class MessageAPI extends BaseAPI{
 	 * @return Media
 	 */
 	public static Media mediaUploadvideo(String access_token,Uploadvideo uploadvideo){
-		String messageJson = JsonUtil.toJSONString(uploadvideo);
-		HttpUriRequest httpUriRequest = RequestBuilder.post()
-										.setHeader(jsonHeader)
-										.setUri(MEDIA_URI+"/cgi-bin/media/uploadvideo")
-										.addParameter(getATPN(), access_token)
-										.setEntity(new StringEntity(messageJson,Charset.forName("utf-8")))
-										.build();
-		return LocalHttpClient.executeJsonResult(httpUriRequest,Media.class);
+		return MediaAPI.mediaUploadvideo(access_token, uploadvideo);
 	}
-
 
 	/**
 	 * 高级群发接口 根据 分组或标签 进行群发
@@ -124,7 +108,7 @@ public class MessageAPI extends BaseAPI{
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 										.setHeader(jsonHeader)
 										.setUri(BASE_URI+"/cgi-bin/message/mass/sendall")
-										.addParameter(getATPN(), access_token)
+										.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 										.setEntity(new StringEntity(messageJson,Charset.forName("utf-8")))
 										.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,MessageSendResult.class);
@@ -152,7 +136,7 @@ public class MessageAPI extends BaseAPI{
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 										.setHeader(jsonHeader)
 										.setUri(BASE_URI+"/cgi-bin/message/mass/send")
-										.addParameter(getATPN(), access_token)
+										.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 										.setEntity(new StringEntity(messageJson,Charset.forName("utf-8")))
 										.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,MessageSendResult.class);
@@ -171,20 +155,37 @@ public class MessageAPI extends BaseAPI{
 
 
 	/**
-	 * 高级群发接口	删除群发
-	 * 请注意，只有已经发送成功的消息才能删除删除消息只是将消息的图文详情页失效，
-	 * 已经收到的用户，还是能在其本地看到消息卡片。
-	 * 另外，删除群发消息只能删除图文消息和视频消息，其他类型的消息一经发送，无法删除。
+	 * 高级群发接口	删除群发 <br>
+	 * 1、只有已经发送成功的消息才能删除<br>
+	 * 2、删除消息是将消息的图文详情页失效，已经收到的用户，还是能在其本地看到消息卡片。<br>
+     * 3、删除群发消息只能删除图文消息和视频消息，其他类型的消息一经发送，无法删除。<br>
+	 * 4、如果多次群发发送的是一个图文消息，那么删除其中一次群发，就会删除掉这个图文消息也，导致所有群发都失效<br>
 	 * @param access_token access_token
 	 * @param msg_id msg_id
 	 * @return BaseResult
 	 */
 	public static BaseResult messageMassDelete(String access_token,String msg_id){
-		String messageJson = String.format("{\"msg_id\":\"%s\"}",msg_id);
+		return messageMassDelete(access_token, msg_id, 0);
+	}
+	
+	/**
+	 * 高级群发接口	删除群发 <br>
+	 * 1、只有已经发送成功的消息才能删除<br>
+	 * 2、删除消息是将消息的图文详情页失效，已经收到的用户，还是能在其本地看到消息卡片。<br>
+     * 3、删除群发消息只能删除图文消息和视频消息，其他类型的消息一经发送，无法删除。<br>
+	 * 4、如果多次群发发送的是一个图文消息，那么删除其中一次群发，就会删除掉这个图文消息也，导致所有群发都失效<br>
+	 * @since 2.8.10
+	 * @param access_token access_token
+	 * @param msg_id msg_id
+	 * @param article_idx 要删除的文章在图文消息中的位置，第一篇编号为1，该字段不填或填0会删除全部文章
+	 * @return BaseResult
+	 */
+	public static BaseResult messageMassDelete(String access_token,String msg_id,Integer article_idx){
+		String messageJson = String.format("{\"msg_id\":\"%s\",\"article_idx\":%d}",msg_id,article_idx);
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 										.setHeader(jsonHeader)
 										.setUri(BASE_URI+"/cgi-bin/message/mass/delete")
-										.addParameter(getATPN(), access_token)
+										.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 										.setEntity(new StringEntity(messageJson,Charset.forName("utf-8")))
 										.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,BaseResult.class);
@@ -202,7 +203,7 @@ public class MessageAPI extends BaseAPI{
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 										.setHeader(jsonHeader)
 										.setUri(BASE_URI+"/cgi-bin/message/mass/preview")
-										.addParameter(getATPN(), access_token)
+										.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 										.setEntity(new StringEntity(previewJson,Charset.forName("utf-8")))
 										.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,MessageSendResult.class);
@@ -220,7 +221,7 @@ public class MessageAPI extends BaseAPI{
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 										.setHeader(jsonHeader)
 										.setUri(BASE_URI+"/cgi-bin/message/mass/get")
-										.addParameter(getATPN(), access_token)
+										.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 										.setEntity(new StringEntity(messageJson,Charset.forName("utf-8")))
 										.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,MessageSendResult.class);
@@ -229,6 +230,8 @@ public class MessageAPI extends BaseAPI{
 
 	/**
 	 * 模板消息发送
+	 * <p>
+	 *<a href="https://mp.weixin.qq.com/wiki?t=resource/res_main&id=mp1433751277">微信模板消息文档</a>
 	 * @param access_token access_token
 	 * @param templateMessage templateMessage
 	 * @return TemplateMessageResult
@@ -238,7 +241,7 @@ public class MessageAPI extends BaseAPI{
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 				.setHeader(jsonHeader)
 				.setUri(BASE_URI+"/cgi-bin/message/template/send")
-				.addParameter(getATPN(), access_token)
+				.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 				.setEntity(new StringEntity(messageJson,Charset.forName("utf-8")))
 				.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,TemplateMessageResult.class);
@@ -256,7 +259,7 @@ public class MessageAPI extends BaseAPI{
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 				.setHeader(jsonHeader)
 				.setUri(BASE_URI+"/cgi-bin/message/wxopen/template/send")
-				.addParameter(getATPN(), access_token)
+				.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 				.setEntity(new StringEntity(messageJson,Charset.forName("utf-8")))
 				.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,BaseResult.class);
@@ -321,7 +324,7 @@ public class MessageAPI extends BaseAPI{
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 				.setHeader(jsonHeader)
 				.setUri(BASE_URI+"/cgi-bin/template/api_set_industry")
-				.addParameter(getATPN(), access_token)
+				.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 				.setEntity(new StringEntity(messageJson,Charset.forName("utf-8")))
 				.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,BaseResult.class);
@@ -336,7 +339,7 @@ public class MessageAPI extends BaseAPI{
 	public static GetIndustryResult templateGet_industry(String access_token){
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 				.setUri(BASE_URI+"/cgi-bin/template/get_industry")
-				.addParameter(getATPN(), access_token)
+				.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 				.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,GetIndustryResult.class);
 	}
@@ -353,7 +356,7 @@ public class MessageAPI extends BaseAPI{
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 				.setHeader(jsonHeader)
 				.setUri(BASE_URI+"/cgi-bin/template/api_add_template")
-				.addParameter(getATPN(), access_token)
+				.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 				.setEntity(new StringEntity(json,Charset.forName("utf-8")))
 				.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,ApiAddTemplateResult.class);
@@ -368,7 +371,7 @@ public class MessageAPI extends BaseAPI{
 	public static GetAllPrivateTemplateResult templateGet_all_private_template(String access_token){
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 				.setUri(BASE_URI+"/cgi-bin/template/get_all_private_template")
-				.addParameter(getATPN(), access_token)
+				.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 				.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,GetAllPrivateTemplateResult.class);
 	}
@@ -385,7 +388,7 @@ public class MessageAPI extends BaseAPI{
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 				.setHeader(jsonHeader)
 				.setUri(BASE_URI+"/cgi-bin/template/del_private_template")
-				.addParameter(getATPN(), access_token)
+				.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 				.setEntity(new StringEntity(json,Charset.forName("utf-8")))
 				.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,BaseResult.class);
@@ -400,7 +403,7 @@ public class MessageAPI extends BaseAPI{
 	public static CurrentAutoreplyInfo get_current_autoreply_info(String access_token){
 		HttpUriRequest httpUriRequest = RequestBuilder.post()
 				.setUri(BASE_URI+"/cgi-bin/get_current_autoreply_info")
-				.addParameter(getATPN(), access_token)
+				.addParameter(PARAM_ACCESS_TOKEN, API.accessToken(access_token))
 				.build();
 		return LocalHttpClient.executeJsonResult(httpUriRequest,CurrentAutoreplyInfo.class);
 	}
